@@ -8,6 +8,22 @@ using System;
 
 namespace CdsWeb.Extensions
 {
+    /// <summary>
+    /// CdsServiceClient wrapper to be used as singleton registration
+    /// </summary>
+    public class CdsServiceClientWrapper
+    {
+        public readonly CdsServiceClient CdsServiceClient;
+
+        public CdsServiceClientWrapper(string connectionString)
+        {
+            CdsServiceClient = new CdsServiceClient(connectionString);
+        }
+    }
+
+    /// <summary>
+    /// Configuration options class definition
+    /// </summary>
     public class CdsServiceClientOptions
     {
         /// <summary>
@@ -16,18 +32,11 @@ namespace CdsWeb.Extensions
         public string ConnectionString { get; set; }
 
         /// <summary>
-        /// Parameter to allow for transient IOrganizationService service based on Clone
-        /// of singleton CdsServiceClient.
-        /// </summary>
-        /// <see cref="IOrganizationService"/>
-        public bool IncludeIOrganizationService = true;
-
-        /// <summary>
         /// Parameter to allow for transient OrganizationServiceContext service based on Clone
         /// of singleton CdsServiceClient.
         /// </summary>
         /// <see cref="OrganizationServiceContext"/>
-        public bool IncludeOrganizationServiceContext = false;
+        public bool IncludeOrganizationServiceContext { get; set; }
 
         /// <summary>
         /// Define a Trace Level for the CdsServiceClient
@@ -61,20 +70,15 @@ namespace CdsWeb.Extensions
             TraceControlSettings.AddTraceListener(services.BuildServiceProvider().GetRequiredService<LoggerTraceListener>());
 
             services.AddSingleton(sp =>
-                new CdsServiceClient(cdsServiceClientOptions.ConnectionString));
+                new CdsServiceClientWrapper(cdsServiceClientOptions.ConnectionString));
 
-            if (cdsServiceClientOptions.IncludeIOrganizationService)
-                services.AddTransient<IOrganizationService>(sp => sp.GetService<CdsServiceClient>().Clone());
+            services.AddTransient<IOrganizationService, CdsServiceClient>(sp =>
+                sp.GetService<CdsServiceClientWrapper>().CdsServiceClient.Clone());
 
-            if (cdsServiceClientOptions.IncludeIOrganizationService && cdsServiceClientOptions.IncludeOrganizationServiceContext)
+            if (cdsServiceClientOptions.IncludeOrganizationServiceContext)
             {
                 services.AddTransient(sp =>
                     new OrganizationServiceContext(sp.GetService<IOrganizationService>()));
-            }
-            else if (cdsServiceClientOptions.IncludeOrganizationServiceContext)
-            {
-                services.AddTransient(sp =>
-                    new OrganizationServiceContext(sp.GetService<CdsServiceClient>().Clone()));
             }
         }
     }

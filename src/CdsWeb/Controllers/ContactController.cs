@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Powerplatform.Cds.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using System;
@@ -15,15 +16,17 @@ namespace CdsWeb.Controllers
     {
         private readonly ILogger<ContactController> _logger;
         private readonly IOrganizationService _orgService;
+        private readonly CdsServiceClient _cdsServiceClient;
 
         public ContactController(ILogger<ContactController> logger, IOrganizationService orgService)
         {
             _logger = logger;
             _orgService = orgService;
+            _cdsServiceClient = (CdsServiceClient)_orgService;
         }
 
         [HttpGet]
-        public IEnumerable<Guid> Get()
+        public IEnumerable<Entity> Get()
         {
             var fetchxml =
                 $@"<fetch version='1.0' output-format='xml-platform' mapping='logical'>
@@ -32,9 +35,9 @@ namespace CdsWeb.Controllers
                         </entity>
                     </fetch>";
 
-            var contactResponse = _orgService.RetrieveMultiple(new FetchExpression(fetchxml));
+            var contactResponse = _cdsServiceClient.RetrieveMultiple(new FetchExpression(fetchxml));
 
-            return contactResponse.Entities.Select(a => a.Id);
+            return contactResponse.Entities;
         }
 
 
