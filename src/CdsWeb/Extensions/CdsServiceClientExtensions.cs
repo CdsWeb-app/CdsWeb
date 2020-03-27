@@ -15,9 +15,19 @@ namespace CdsWeb.Extensions
     {
         public readonly CdsServiceClient CdsServiceClient;
 
-        public CdsServiceClientWrapper(string connectionString)
+        public CdsServiceClientWrapper(string connectionString, ILogger<CdsServiceClientWrapper> logger, string traceLevel = "Off")
         {
-            CdsServiceClient = new CdsServiceClient(connectionString);
+            TraceControlSettings.TraceLevel =
+                (System.Diagnostics.SourceLevels)Enum.Parse(
+                    typeof(System.Diagnostics.SourceLevels), traceLevel);
+
+            TraceControlSettings.AddTraceListener(
+                new LoggerTraceListener(
+                    "Microsoft.PowerPlatform.Cds.Client", logger
+                    )
+                );
+
+            CdsServiceClient = new CdsServiceClient(connectionString ?? throw new ArgumentNullException(nameof(connectionString)));
         }
     }
 
@@ -61,16 +71,11 @@ namespace CdsWeb.Extensions
             configureOptions(cdsServiceClientOptions);
 
             services.AddSingleton(sp =>
-                new LoggerTraceListener(
-                    "Microsoft.PowerPlatform.Cds.Client",
-                    sp.GetRequiredService<ILogger<LoggerTraceListener>>())
+                new CdsServiceClientWrapper(
+                    cdsServiceClientOptions.ConnectionString,
+                    sp.GetRequiredService<ILogger<CdsServiceClientWrapper>>(),
+                    cdsServiceClientOptions.TraceLevel)
                 );
-
-            TraceControlSettings.TraceLevel = (System.Diagnostics.SourceLevels)Enum.Parse(typeof(System.Diagnostics.SourceLevels), cdsServiceClientOptions.TraceLevel);
-            TraceControlSettings.AddTraceListener(services.BuildServiceProvider().GetRequiredService<LoggerTraceListener>());
-
-            services.AddSingleton(sp =>
-                new CdsServiceClientWrapper(cdsServiceClientOptions.ConnectionString));
 
             services.AddTransient<IOrganizationService, CdsServiceClient>(sp =>
                 sp.GetService<CdsServiceClientWrapper>().CdsServiceClient.Clone());
