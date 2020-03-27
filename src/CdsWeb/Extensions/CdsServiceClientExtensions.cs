@@ -13,10 +13,9 @@ namespace CdsWeb.Extensions
     /// </summary>
     public class CdsServiceClientWrapper
     {
-
         public readonly CdsServiceClient CdsServiceClient;
 
-        public CdsServiceClientWrapper(string connectionString, ILogger<CdsServiceClientWrapper> logger, string traceLevel)
+        public CdsServiceClientWrapper(string connectionString, ILogger<CdsServiceClientWrapper> logger, string traceLevel = "Off")
         {
             TraceControlSettings.TraceLevel = 
                 (System.Diagnostics.SourceLevels)Enum.Parse(
@@ -28,7 +27,7 @@ namespace CdsWeb.Extensions
                     )
                 );
 
-            CdsServiceClient = new CdsServiceClient(connectionString);
+            CdsServiceClient = new CdsServiceClient(connectionString ?? throw new ArgumentNullException(nameof(connectionString)));
         }
     }
 
