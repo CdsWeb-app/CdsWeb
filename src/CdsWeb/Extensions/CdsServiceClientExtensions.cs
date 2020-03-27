@@ -17,7 +17,7 @@ namespace CdsWeb.Extensions
 
         public CdsServiceClientWrapper(string connectionString, ILogger<CdsServiceClientWrapper> logger, string traceLevel = "Off")
         {
-            TraceControlSettings.TraceLevel = 
+            TraceControlSettings.TraceLevel =
                 (System.Diagnostics.SourceLevels)Enum.Parse(
                     typeof(System.Diagnostics.SourceLevels), traceLevel);
 
@@ -72,8 +72,8 @@ namespace CdsWeb.Extensions
 
             services.AddSingleton(sp =>
                 new CdsServiceClientWrapper(
-                    cdsServiceClientOptions.ConnectionString, 
-                    sp.GetRequiredService<ILogger<CdsServiceClientWrapper>>(), 
+                    cdsServiceClientOptions.ConnectionString,
+                    sp.GetRequiredService<ILogger<CdsServiceClientWrapper>>(),
                     cdsServiceClientOptions.TraceLevel)
                 );
 
