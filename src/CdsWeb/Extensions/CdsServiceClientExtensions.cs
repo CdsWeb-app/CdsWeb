@@ -1,7 +1,7 @@
 ﻿using CdsWeb.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Powerplatform.Cds.Client;
+using Microsoft.PowerPlatform.Cds.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
 using System;
