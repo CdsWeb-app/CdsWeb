@@ -1,13 +1,69 @@
 ﻿using CdsWeb.Logging;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.PowerPlatform.Cds.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
+using Microsoft.Xrm.Sdk.Query;
 using System;
+using System.Threading.Tasks;
 
 namespace CdsWeb.Extensions
 {
+    public class CdsServiceClientCore : IOrganizationService
+    {
+        public readonly CdsServiceClient _client;
+
+        public CdsServiceClientCore(CdsServiceClientWrapper client)
+        {
+            _client = client.CdsServiceClient.Clone();
+        }
+
+        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            _client.Associate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public Guid Create(Entity entity)
+        {
+            return _client.Create(entity);
+        }
+
+        public void Delete(string entityName, Guid id)
+        {
+            _client.Delete(entityName, id);
+        }
+
+        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            _client.Disassociate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public OrganizationResponse Execute(OrganizationRequest request)
+        {
+            return _client.Execute(request);
+        }
+
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return _client.Retrieve(entityName, id, columnSet);
+        }
+
+        public EntityCollection RetrieveMultiple(QueryBase query)
+        {
+            return _client.RetrieveMultiple(query);
+        }
+
+        public void Update(Entity entity)
+        {
+            _client.Update(entity);
+        }
+    }
+
     /// <summary>
     /// CdsServiceClient wrapper to be used as singleton registration
     /// </summary>
@@ -15,19 +71,21 @@ namespace CdsWeb.Extensions
     {
         public readonly CdsServiceClient CdsServiceClient;
 
-        public CdsServiceClientWrapper(string connectionString, ILogger<CdsServiceClientWrapper> logger, string traceLevel = "Off")
+        public CdsServiceClientWrapper(ILoggerFactory loggerFactory, IConfiguration configuration)
         {
+            var cdsOptions = configuration.GetSection("CdsServiceClient").Get<CdsServiceClientOptions>();
+
             TraceControlSettings.TraceLevel =
                 (System.Diagnostics.SourceLevels)Enum.Parse(
-                    typeof(System.Diagnostics.SourceLevels), traceLevel);
+                    typeof(System.Diagnostics.SourceLevels), cdsOptions.TraceLevel);
 
             TraceControlSettings.AddTraceListener(
                 new LoggerTraceListener(
-                    "Microsoft.PowerPlatform.Cds.Client", logger
+                    "Microsoft.PowerPlatform.Cds.Client", loggerFactory.CreateLogger<CdsServiceClientWrapper>()
                     )
                 );
 
-            CdsServiceClient = new CdsServiceClient(connectionString ?? throw new ArgumentNullException(nameof(connectionString)));
+            CdsServiceClient = new CdsServiceClient(cdsOptions.ConnectionString);
         }
     }
 
@@ -59,32 +117,42 @@ namespace CdsWeb.Extensions
     public static class CdsServiceCollectionExtensions
     {
         /// <summary>
-        /// Include a CdsServiceClient as a singleton service within the Service Collection
+        /// Includes a CdsServiceClient as a singleton service within the Service Collection
         /// Optional include transient services for IOrganizationService <see cref="IOrganizationService"/>
         /// and OrganizationServiceContext <see cref="OrganizationServiceContext"/>
         /// </summary>
         /// <param name="services"></param>
         /// <param name="configureOptions"><see cref="CdsServiceClientOptions"/></param>
-        public static void AddCdsServiceClient(this IServiceCollection services, Action<CdsServiceClientOptions> configureOptions)
+        public static void AddCdsServiceClient(this IServiceCollection services)
         {
-            CdsServiceClientOptions cdsServiceClientOptions = new CdsServiceClientOptions();
-            configureOptions(cdsServiceClientOptions);
+            services.AddSingleton<CdsServiceClientWrapper>();
 
-            services.AddSingleton(sp =>
-                new CdsServiceClientWrapper(
-                    cdsServiceClientOptions.ConnectionString,
-                    sp.GetRequiredService<ILogger<CdsServiceClientWrapper>>(),
-                    cdsServiceClientOptions.TraceLevel)
-                );
+            services.AddTransient<IOrganizationService, CdsServiceClientCore>();
+        }
 
-            services.AddTransient<IOrganizationService, CdsServiceClient>(sp =>
-                sp.GetService<CdsServiceClientWrapper>().CdsServiceClient.Clone());
+        /// <summary>
+        /// Initiate the CdsServiceClient
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <returns></returns>
+        public static IApplicationBuilder UseCdsServiceClient(this IApplicationBuilder builder)
+        {
+            return builder.UseMiddleware<CdsServiceClientMiddleware>();
+        }
+    }
 
-            if (cdsServiceClientOptions.IncludeOrganizationServiceContext)
-            {
-                services.AddTransient(sp =>
-                    new OrganizationServiceContext(sp.GetService<IOrganizationService>()));
-            }
+    public class CdsServiceClientMiddleware
+    {
+        private readonly RequestDelegate _next;
+
+        public CdsServiceClientMiddleware(RequestDelegate next)
+        {
+            _next = next;
+        }
+
+        public async Task Invoke(HttpContext httpContext, CdsServiceClientWrapper svc)
+        {
+            await _next(httpContext);
         }
     }
 }

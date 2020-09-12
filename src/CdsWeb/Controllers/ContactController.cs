@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using CdsWeb.Extensions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.PowerPlatform.Cds.Client;
 using Microsoft.Xrm.Sdk;
@@ -20,7 +21,7 @@ namespace CdsWeb.Controllers
         {
             _logger = logger;
             _orgService = orgService;
-            _cdsServiceClient = (CdsServiceClient)_orgService;
+            _cdsServiceClient = ((CdsServiceClientCore)_orgService)._client;
         }
 
         [HttpGet]

@@ -30,8 +30,7 @@ namespace CdsWeb
 
             services.AddControllers();
 
-            services.AddCdsServiceClient(
-                options => Configuration.Bind("CdsServiceClient", options));
+            services.AddCdsServiceClient();
 
             services.AddPowerAppsPortalAuthentication(
                 options => Configuration.Bind("PowerAppsPortal", options));
@@ -53,6 +52,8 @@ namespace CdsWeb
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseCdsServiceClient();
 
             app.UseEndpoints(endpoints =>
             {
